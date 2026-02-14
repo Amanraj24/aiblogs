@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Components } from 'react-markdown/lib/ast-to-react';
+// import { Components } from 'react-markdown'; // Not needed in newer versions, or just use 'any' if types are strict
+import type { Components } from 'react-markdown';
 
 interface MarkdownRendererProps {
   content: string;

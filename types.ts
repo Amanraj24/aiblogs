@@ -50,7 +50,7 @@ export interface TrainingModule {
   actionableTakeaways: string[];
 }
 
-export type ViewState = 'dashboard' | 'topic-selection' | 'generating' | 'editor' | 'read' | 'settings' | 'training-hub';
+export type ViewState = 'dashboard' | 'generator' | 'editor' | 'reader' | 'settings' | 'training';
 
 export interface GenerationParams {
   niche: string;
@@ -75,5 +75,4 @@ export interface ScheduledSlot {
   status: 'pending_selection' | 'ready' | 'published';
   suggestedTopics: GeneratedTopic[]; // List of 3-5 suggestions
   selectedTopic?: GeneratedTopic; // The chosen one
-  suggestionCount?: number;
 }

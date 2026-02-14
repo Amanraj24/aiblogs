@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { generateFullPost, generateCoverImage } from '../services/geminiService';
+import { generateFullPost, generateCoverImage } from '@/app/actions/gemini';
 import { BlogPost } from '../types';
 import Button from './Button';
 import { Check, Copy, RefreshCw, ArrowLeft, Tag, Clock, Calendar, Sparkles, Upload, Wand2, Image as ImageIcon, CalendarClock, Globe, HelpCircle, TrendingUp } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
-import SimpleMDE from "react-simplemde-editor";
+import dynamic from 'next/dynamic';
+const SimpleMDE = dynamic(() => import("react-simplemde-editor"), { ssr: false });
 import "easymde/dist/easymde.min.css";
 
 interface PostEditorProps {

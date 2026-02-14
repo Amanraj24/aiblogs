@@ -1,7 +1,12 @@
 import { GoogleGenAI, Type, Schema, GenerateContentResponse } from "@google/genai";
 import { BlogPost, GeneratedTopic, TrainingModule } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  console.error("GEMINI_API_KEY is not set in environment variables.");
+}
+
+const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 // Retry helper function with exponential backoff
 async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
@@ -165,8 +170,7 @@ export const generateFullPost = async (topic: string, tone: string, trainingCont
 
 // Helper to generate a cover image
 export const generateCoverImage = async (topic: string): Promise<string> => {
-  // Fallback to high-quality Unsplash image for stability since flash model doesn't support image generation
-  // Use Picsum for reliability
+  // Fallback to high-quality Unsplash image for stability
   const randomSeed = Math.floor(Math.random() * 100000);
   return `https://picsum.photos/seed/${randomSeed}/800/400`;
 };
@@ -203,7 +207,6 @@ export const generateAndPublishAutoPost = async (niche: string): Promise<BlogPos
     keywords: content.keywords || [],
     category: content.category || "Auto-Generated",
     readTime: content.readTime || "3 min read",
-    // CHANGED: Include time in the date string
     dateCreated: new Date().toLocaleString(),
     status: 'published',
     geoTargeting: content.geoTargeting || "Global",

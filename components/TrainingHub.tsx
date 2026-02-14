@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GraduationCap, Sparkles, Star, Loader, ChevronRight, Plus, Trash2, Book, FileText, Lightbulb } from 'lucide-react';
 import { TrainingModule, TrainingData } from '../types';
 import Button from './Button';
-import { generateTrainingModule } from '../services/geminiService';
+import { generateTrainingModule } from '@/app/actions/gemini';
 import TrainingModuleViewer from './TrainingModuleViewer';
 
 interface TrainingHubProps {

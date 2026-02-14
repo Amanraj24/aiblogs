@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, ArrowRight, Target } from 'lucide-react';
-import { generateTopics } from '../services/geminiService';
+import { generateTopics } from '@/app/actions/gemini';
 import { GeneratedTopic } from '../types';
 import Button from './Button';
 
