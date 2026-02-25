@@ -51,8 +51,8 @@ const Dashboard: React.FC<DashboardProps> = ({ posts, onCreateNew, onViewPost, o
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {posts.map((post) => (
-              <div key={post.id} className="p-6 hover:bg-gray-50 transition-colors group cursor-pointer" onClick={() => onViewPost(post)}>
+            {posts.map((post, index) => (
+              <div key={post.id ?? index} className="p-6 hover:bg-gray-50 transition-colors group cursor-pointer" onClick={() => onViewPost(post)}>
                 <div className="flex items-start justify-between">
                   <div className="flex gap-4 w-full">
                     {post.coverImage && <img src={post.coverImage} alt="" className="w-24 h-24 rounded-lg object-cover hidden sm:block shadow-sm" />}
