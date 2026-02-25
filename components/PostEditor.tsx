@@ -4,9 +4,7 @@ import { BlogPost } from '../types';
 import Button from './Button';
 import { Check, Copy, RefreshCw, ArrowLeft, Tag, Clock, Calendar, Sparkles, Upload, Wand2, Image as ImageIcon, CalendarClock, Globe, HelpCircle, TrendingUp } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
-import dynamic from 'next/dynamic';
-const SimpleMDE = dynamic(() => import("react-simplemde-editor"), { ssr: false });
-import "easymde/dist/easymde.min.css";
+import TiptapEditor from './TiptapEditor';
 
 interface PostEditorProps {
   topic: string;
@@ -274,28 +272,21 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
               />
 
               {/* Editable Content */}
-              <div className="prose max-w-none">
-                <SimpleMDE
+              <div className="mb-8">
+                <TiptapEditor
                   value={postData?.content || ''}
                   onChange={handleContentChange}
-                  options={{
-                    spellChecker: false,
-                    placeholder: "Write your masterpiece...",
-                    status: false,
-                    autosave: {
-                      enabled: false,
-                      uniqueId: "post_content_" + (postData?.id || "draft"),
-                      delay: 1000,
-                    },
-                  }}
-                  className="rounded-lg overflow-hidden"
+                  placeholder="Write your masterpiece..."
                 />
               </div>
 
               {/* Preview */}
               <div className="mt-8 pt-8 border-t border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Preview</h3>
-                <MarkdownRenderer content={postData?.content || ''} className="text-gray-700" />
+                <div
+                  className="rich-preview text-gray-700"
+                  dangerouslySetInnerHTML={{ __html: postData?.content || '' }}
+                />
 
                 {/* FAQ Section Preview */}
                 {postData?.aeoQuestions && postData.aeoQuestions.length > 0 && (

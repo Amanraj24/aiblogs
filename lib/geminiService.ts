@@ -38,7 +38,7 @@ export const generateTopics = async (niche: string, trainingContext?: string, co
       properties: {
         topic: { type: Type.STRING, description: "A catchy, SEO-friendly blog post title" },
         relevance: { type: Type.STRING, description: "Brief explanation of why this is trending or relevant" },
-        content: { type: Type.STRING, description: "Full blog post in Markdown" },
+        content: { type: Type.STRING, description: "Full blog post in clean HTML" },
         excerpt: { type: Type.STRING, description: "Short summary under 160 characters" },
         keywords: { type: Type.ARRAY, items: { type: Type.STRING }, description: "5-7 keywords" },
         category: { type: Type.STRING },
@@ -103,7 +103,7 @@ export const generateFullPost = async (topic: string, tone: string, trainingCont
     type: Type.OBJECT,
     properties: {
       title: { type: Type.STRING },
-      content: { type: Type.STRING, description: "The full blog article in Markdown format. Use headers, bullet points, and clear paragraphs." },
+      content: { type: Type.STRING, description: "The full blog article in clean HTML format. Use <h2> and <h3> for headings, <p> for paragraphs, <ul>/<li> for lists, and <strong>/<em> for emphasis." },
       excerpt: { type: Type.STRING, description: "A short, engaging summary (meta description) under 160 characters." },
       keywords: { type: Type.ARRAY, items: { type: Type.STRING }, description: "5-7 relevant tags/keywords for the post." },
       category: { type: Type.STRING, description: "A general category for this post." },
@@ -138,7 +138,7 @@ export const generateFullPost = async (topic: string, tone: string, trainingCont
       contents: `You are an expert content writer. Write a complete, high-quality blog post about "${topic}". ${contextPrompt}
       
       Requirements:
-      1. **Content**: Comprehensive, engaging, and well-structured. **DO NOT include an H1 title**. Use H2 and H3 for headings. **DO NOT include the FAQ or "People Also Ask" section in this marked-down content**; providing it in the JSON aeoQuestions is sufficient.
+      1. **Content**: Comprehensive, engaging, and well-structured in clean HTML. **DO NOT include an H1 title**. Use <h2> and <h3> for headings. **DO NOT include the FAQ or \"People Also Ask\" section in this HTML content**; providing it in the JSON aeoQuestions is sufficient.
       2. **Tags**: Generate 5-7 relevant keywords/tags.
       3. **People Also Ask**: Generate 4-6 conversational Q&A pairs for the "People Also Ask" section. **MUST include both "question" and "answer" keys for EVERY item.** DO NOT leave the answer empty.
       4. **Geo**: Target ${tone.includes('UK') ? 'UK' : 'Global/US'} audience unless specified otherwise.
