@@ -29,7 +29,8 @@ if (process.env.NODE_ENV === 'production') {
             connectionLimit: 10,
             queueLimit: 0,
             enableKeepAlive: true,
-            keepAliveInitialDelay: 0
+            keepAliveInitialDelay: 0,
+            connectTimeout: 10000, // 10 seconds
         });
     }
     pool = (global as any).mysqlPool;

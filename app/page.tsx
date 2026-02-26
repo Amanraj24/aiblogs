@@ -9,6 +9,7 @@ import Settings from '@/components/Settings';
 import PostReader from '@/components/PostReader';
 import TrainingHub from '@/components/TrainingHub';
 import TopicGenerator from '@/components/TopicGenerator';
+import StorageView from '@/components/StorageView';
 import { Menu } from 'lucide-react';
 
 export default function Home() {
@@ -304,6 +305,10 @@ export default function Home() {
               }}
               onEditGeneratedPost={handleEditGeneratedTopic}
             />
+          )}
+
+          {view === 'storage' && (
+            <StorageView />
           )}
         </div>
       </main>

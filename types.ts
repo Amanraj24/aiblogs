@@ -50,7 +50,7 @@ export interface TrainingModule {
   actionableTakeaways: string[];
 }
 
-export type ViewState = 'dashboard' | 'generator' | 'editor' | 'reader' | 'settings' | 'training';
+export type ViewState = 'dashboard' | 'generator' | 'editor' | 'reader' | 'settings' | 'training' | 'storage';
 
 export interface GenerationParams {
   niche: string;

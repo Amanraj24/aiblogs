@@ -2,9 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { generateFullPost, generateCoverImage } from '@/app/actions/gemini';
 import { BlogPost } from '../types';
 import Button from './Button';
-import { Check, Copy, RefreshCw, ArrowLeft, Tag, Clock, Calendar, Sparkles, Upload, Wand2, Image as ImageIcon, CalendarClock, Globe, HelpCircle, TrendingUp } from 'lucide-react';
-import MarkdownRenderer from './MarkdownRenderer';
+import { Check, Copy, RefreshCw, ArrowLeft, Tag, Clock, Calendar, Sparkles, Wand2, Image as ImageIcon, CalendarClock, Globe, HelpCircle, TrendingUp, BookOpen } from 'lucide-react';
 import TiptapEditor from './TiptapEditor';
+import MediaPickerModal from './MediaPickerModal';
 
 interface PostEditorProps {
   topic: string;
@@ -24,6 +24,8 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
   const [showScheduler, setShowScheduler] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
+  const [mediaModalTab, setMediaModalTab] = useState<'storage' | 'url'>('storage');
 
   // Editing state for new fields
   const [geoTargeting, setGeoTargeting] = useState(initialPost?.geoTargeting || 'Global');
@@ -125,16 +127,15 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setCoverImage(reader.result as string);
-      reader.readAsDataURL(file);
-    }
+  const openMediaModal = (tab: 'storage' | 'url' = 'storage') => {
+    setMediaModalTab(tab);
+    setIsMediaModalOpen(true);
   };
 
-  const triggerFileUpload = () => fileInputRef.current?.click();
+  const handleMediaSelect = (url: string) => {
+    setCoverImage(url);
+    setIsMediaModalOpen(false);
+  };
 
   const handleSavePost = () => {
     if (!postData) return;
@@ -171,12 +172,8 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
   };
 
   const handleCancelAndClear = () => {
-    // Optional: Clear draft on cancel? Or keep it?
-    // User said "never delete previous functionality until not commanded"
-    // safer to keep it or maybe prompt? For now, we'll keep it so they can come back.
-    // But if they switch topics, the draft check handles it.
     onCancel();
-  }
+  };
 
   const copyToClipboard = () => {
     if (postData?.content) {
@@ -250,10 +247,12 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
             <div className="relative group bg-gray-100 min-h-[16rem]">
               {coverImage ? <img src={coverImage} alt="Cover" className="w-full h-64 object-cover" /> : <div className="w-full h-64 flex items-center justify-center text-gray-400"><ImageIcon size={48} /></div>}
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center gap-4 backdrop-blur-[2px]">
-                <Button variant="secondary" onClick={triggerFileUpload} icon={<Upload size={18} />} className="bg-white/90 hover:bg-white">Upload</Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" onClick={() => openMediaModal('storage')} icon={<BookOpen size={18} />} className="bg-white/90 hover:bg-white text-gray-800">Storage</Button>
+                  <Button variant="secondary" onClick={() => openMediaModal('url')} icon={<Globe size={18} />} className="bg-white/90 hover:bg-white text-gray-800">Link</Button>
+                </div>
                 <Button variant="primary" onClick={handleGenerateImage} isLoading={isGeneratingImage} icon={<Wand2 size={18} />} className="shadow-lg">{coverImage ? 'Regenerate AI' : 'Generate AI'}</Button>
               </div>
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
             </div>
             <div className="p-8">
               <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
@@ -432,6 +431,12 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
           </div>
         </div>
       </div>
+      <MediaPickerModal
+        isOpen={isMediaModalOpen}
+        onClose={() => setIsMediaModalOpen(false)}
+        onSelect={handleMediaSelect}
+        initialTab={mediaModalTab}
+      />
     </div>
   );
 };

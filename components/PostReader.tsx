@@ -2,7 +2,6 @@ import React from 'react';
 import { BlogPost } from '../types';
 import Button from './Button';
 import { ArrowLeft, Calendar, Clock, Tag, User, Share2, Edit, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
-import MarkdownRenderer from './MarkdownRenderer';
 
 interface PostReaderProps {
   post: BlogPost;
@@ -11,17 +10,6 @@ interface PostReaderProps {
 }
 
 const PostReader: React.FC<PostReaderProps> = ({ post, onBack, onEdit }) => {
-
-  const markdownComponents = {
-    h2: ({ ...props }) => <h2 className="text-2xl font-bold text-gray-800 mt-8 mb-4 pb-2 border-b border-gray-100" {...props} />,
-    h3: ({ ...props }) => <h3 className="text-xl font-bold text-gray-800 mt-6 mb-3" {...props} />,
-    p: ({ ...props }) => <p className="text-lg text-gray-700 mb-4" {...props} />,
-    ul: ({ ...props }) => <ul className="ml-6 list-disc space-y-2 my-4" {...props} />,
-    ol: ({ ...props }) => <ol className="ml-6 list-decimal space-y-2 my-4" {...props} />,
-    li: ({ ...props }) => <li className="text-lg text-gray-700" {...props} />,
-  };
-
-
 
   // Generate FAQ Schema if Q&A exists
   const faqSchema = post.aeoQuestions && post.aeoQuestions.length > 0 ? {
@@ -107,29 +95,31 @@ const PostReader: React.FC<PostReaderProps> = ({ post, onBack, onEdit }) => {
           </div>
 
           {/* Content Body */}
-          <MarkdownRenderer
-            // Aggressively strip JSON-LD and Schema fragments from display
-            content={(() => {
-              let clean = post.content;
+          <div
+            className="rich-preview text-gray-800 leading-relaxed"
+            dangerouslySetInnerHTML={{
+              __html: (() => {
+                let clean = post.content;
 
-              // Remove explicit H1 title from content if present, to avoid duplication with the page title
-              clean = clean.replace(/^#\s+.+\n*/, '');
-              // Strategy: Truncate content if a Schema.org block is detected at the end
-              const schemaMatch = clean.match(/(?:```json\s*)?\{\s*"@context"\s*:\s*"https?:\/\/schema\.org"/i);
-              if (schemaMatch && schemaMatch.index !== undefined && schemaMatch.index > 100) {
-                // Only truncate if match is not at the very start (avoiding empty post)
-                clean = clean.substring(0, schemaMatch.index);
-              }
+                // Remove explicit H1 title from content if present, to avoid duplication with the page title
+                // Handle both raw Markdown header and HTML header
+                clean = clean.replace(/^#\s+.+\n*/, '');
+                clean = clean.replace(/<h1[^>]*>.*?<\/h1>/i, '');
 
-              // Fallback cleans for fragments
-              return clean
-                .replace(/```json\s*\{[\s\S]*?\n\s*\}\s*```/g, "")
-                .replace(/\{[\s\S]*?"@context"\s*:\s*"https?:\/\/schema\.org"[\s\S]*?\}/g, "")
-                .replace(/\[\s*\{[\s\S]*?"@type"\s*:\s*"Question"[\s\S]*?\]/g, "")
-                .replace(/"@type"\s*:\s*"Question"[\s\S]*?\}/g, "");
-            })()}
-            components={markdownComponents}
-            className="text-gray-800 leading-relaxed"
+                // Strategy: Truncate content if a Schema.org block is detected
+                const schemaMatch = clean.match(/(?:```json\s*)?\{\s*"@context"\s*:\s*"https?:\/\/schema\.org"/i);
+                if (schemaMatch && schemaMatch.index !== undefined && schemaMatch.index > 100) {
+                  clean = clean.substring(0, schemaMatch.index);
+                }
+
+                // Fallback cleans for fragments/JSON blocks
+                return clean
+                  .replace(/```json\s*\{[\s\S]*?\n\s*\}\s*```/g, "")
+                  .replace(/\{[\s\S]*?"@context"\s*:\s*"https?:\/\/schema\.org"[\s\S]*?\}/g, "")
+                  .replace(/\[\s*\{[\s\S]*?"@type"\s*:\s*"Question"[\s\S]*?\]/g, "")
+                  .replace(/"@type"\s*:\s*"Question"[\s\S]*?\}/g, "");
+              })()
+            }}
           />
 
           {/* FAQ Section (Accordion Style) */}

@@ -14,6 +14,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, activeView, onNavigate, onTog
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'generator', label: 'Topic Generator', icon: Sparkles },
         { id: 'training', label: 'Training Hub', icon: GraduationCap },
+        { id: 'storage', label: 'Storage', icon: BookOpen },
         { id: 'settings', label: 'Settings', icon: Settings },
     ];
 

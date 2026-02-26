@@ -33,6 +33,9 @@ import js from 'highlight.js/lib/languages/javascript';
 import ts from 'highlight.js/lib/languages/typescript';
 import html from 'highlight.js/lib/languages/xml';
 import python from 'highlight.js/lib/languages/python';
+import { uploadFile } from '../lib/remoteStorage';
+import { Loader } from 'lucide-react';
+import MediaPickerModal from './MediaPickerModal';
 
 const lowlight = createLowlight();
 lowlight.register('html', html);
@@ -79,7 +82,15 @@ const ToolbarButton = ({
 const Divider = () => <div className="w-px h-6 bg-gray-300 mx-1" />;
 
 // ─── Toolbar ───────────────────────────────────────────────────────────────────
-const Toolbar = ({ editor }: { editor: Editor }) => {
+const Toolbar = ({
+    editor,
+    onOpenMediaModal
+}: {
+    editor: Editor;
+    onOpenMediaModal: (tab: 'storage' | 'url') => void;
+}) => {
+    if (!editor) return null;
+
     const setLink = useCallback(() => {
         const url = window.prompt('Enter URL:');
         if (url === null) return;
@@ -88,11 +99,6 @@ const Toolbar = ({ editor }: { editor: Editor }) => {
             return;
         }
         editor.chain().focus().extendMarkRange('link').setLink({ href: url, target: '_blank' }).run();
-    }, [editor]);
-
-    const addImage = useCallback(() => {
-        const url = window.prompt('Enter image URL:');
-        if (url) editor.chain().focus().setImage({ src: url }).run();
     }, [editor]);
 
     const insertTable = useCallback(() => {
@@ -175,7 +181,10 @@ const Toolbar = ({ editor }: { editor: Editor }) => {
 
             {/* Link / Image / Table */}
             <ToolbarButton onClick={setLink} active={editor.isActive('link')} title="Insert Link">🔗</ToolbarButton>
-            <ToolbarButton onClick={addImage} title="Insert Image">🖼</ToolbarButton>
+            <div className="flex items-center gap-1 shadow-sm border border-gray-200 rounded-md bg-white p-0.5">
+                <ToolbarButton onClick={() => onOpenMediaModal('storage')} title="Browse Remote Storage">☁️</ToolbarButton>
+                <ToolbarButton onClick={() => onOpenMediaModal('url')} title="Insert Image Link">🔗 Image</ToolbarButton>
+            </div>
             <ToolbarButton onClick={insertTable} title="Insert Table">⊞ Table</ToolbarButton>
 
             {editor.isActive('table') && (
@@ -202,6 +211,9 @@ const Toolbar = ({ editor }: { editor: Editor }) => {
 
 // ─── Main Editor Component ─────────────────────────────────────────────────────
 const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, placeholder = 'Write your masterpiece...' }) => {
+    const [isMediaModalOpen, setIsMediaModalOpen] = React.useState(false);
+    const [mediaModalTab, setMediaModalTab] = React.useState<'storage' | 'url'>('storage');
+
     const editor = useEditor({
         immediatelyRender: false,
         extensions: [
@@ -232,13 +244,28 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, placeholde
         },
     });
 
+    const handleMediaSelect = useCallback((url: string) => {
+        if (!editor) return;
+        setIsMediaModalOpen(false);
+        console.log('Inserting image into editor (delayed):', url);
+        // Small delay to ensure modal closure doesn't steal focus during insertion
+        setTimeout(() => {
+            editor.chain().focus().setImage({ src: url }).run();
+        }, 100);
+    }, [editor]);
+
+    const openMediaModal = (tab: 'storage' | 'url' = 'storage') => {
+        setMediaModalTab(tab);
+        setIsMediaModalOpen(true);
+    };
+
     // Sync content when value changes from outside (e.g. AI generation)
     useEffect(() => {
         if (!editor) return;
         const html = parseToHtml(value);
         const current = editor.getHTML();
         if (html !== current) {
-            editor.commands.setContent(html, false);
+            editor.commands.setContent(html, { emitUpdate: false });
         }
     }, [value, editor]);
 
@@ -249,12 +276,22 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, placeholde
 
     return (
         <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm bg-white">
-            <Toolbar editor={editor} />
+            <Toolbar
+                editor={editor}
+                onOpenMediaModal={openMediaModal}
+            />
             <EditorContent editor={editor} />
             <div className="flex justify-end gap-4 text-xs text-gray-400 px-4 py-2 border-t border-gray-100 bg-gray-50">
                 <span>{words} words</span>
                 <span>{chars} characters</span>
             </div>
+
+            <MediaPickerModal
+                isOpen={isMediaModalOpen}
+                onClose={() => setIsMediaModalOpen(false)}
+                onSelect={handleMediaSelect}
+                initialTab={mediaModalTab}
+            />
         </div>
     );
 };
