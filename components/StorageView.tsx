@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Upload, Trash2, Image as ImageIcon, Search, Share2, Loader, Plus, Settings as XIcon, BookOpen as VideoIcon } from 'lucide-react';
-import { listFiles, uploadFile, deleteFile, RemoteFile } from '../lib/remoteStorage';
+import { Upload, Trash2, Image as ImageIcon, Search, Share2, Loader, Plus, Settings as XIcon, BookOpen as VideoIcon, Pencil, Check } from 'lucide-react';
+import { listFiles, uploadFile, deleteFile, renameFile, RemoteFile } from '../lib/remoteStorage';
 
 const StorageView: React.FC = () => {
     const [files, setFiles] = useState<RemoteFile[]>([]);
@@ -11,6 +11,11 @@ const StorageView: React.FC = () => {
     const [uploading, setUploading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedFile, setSelectedFile] = useState<RemoteFile | null>(null);
+
+    // Renaming state
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [renameLoading, setRenameLoading] = useState(false);
 
     const fetchFiles = async () => {
         setLoading(true);
@@ -35,6 +40,41 @@ const StorageView: React.FC = () => {
             alert(result.error || 'Upload failed');
         }
         setUploading(false);
+    };
+
+    const handleRename = async () => {
+        if (!selectedFile || !newName || newName === selectedFile.filename) {
+            setIsRenaming(false);
+            return;
+        }
+
+        // Sanitize new name (allow extensions)
+        let sanitized = newName
+            .toLowerCase()
+            .replace(/[\s]+/g, '-')
+            .replace(/[^\w\.-]/g, '');
+
+        // Ensure extension
+        const extMatch = selectedFile.filename.match(/\.[^.]+$/);
+        const newExtMatch = sanitized.match(/\.[^.]+$/);
+        if (extMatch && !newExtMatch) {
+            sanitized += extMatch[0];
+        }
+
+        setRenameLoading(true);
+        const result = await renameFile(selectedFile.filename, sanitized);
+        if (result.success) {
+            await fetchFiles();
+            // Find the updated file in the new list to keep it selected
+            const updated = files.find(f => f.filename === selectedFile.filename); // This is old list
+            // We'll just clear selection or re-fetch logic needs to be careful
+            setSelectedFile(null);
+            setIsRenaming(false);
+            alert('File renamed successfully!');
+        } else {
+            alert(result.error || 'Failed to rename file. Make sure your Hostinger API is updated.');
+        }
+        setRenameLoading(false);
     };
 
     const handleDelete = async (filename: string) => {
@@ -109,7 +149,11 @@ const StorageView: React.FC = () => {
                             {filteredFiles.map((file) => (
                                 <div
                                     key={file.filename}
-                                    onClick={() => setSelectedFile(file)}
+                                    onClick={() => {
+                                        setSelectedFile(file);
+                                        setIsRenaming(false);
+                                        setNewName(file.filename);
+                                    }}
                                     className={`group relative bg-white rounded-xl border transition-all cursor-pointer overflow-hidden ${selectedFile?.filename === file.filename
                                         ? 'border-indigo-600 ring-2 ring-indigo-100'
                                         : 'border-gray-200 hover:border-gray-300'
@@ -169,10 +213,48 @@ const StorageView: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             <div>
-                                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">File Name</label>
-                                <p className="text-sm text-gray-700 break-all font-medium mt-1">{selectedFile.filename}</p>
+                                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">File Name</label>
+                                {isRenaming ? (
+                                    <div className="space-y-2">
+                                        <input
+                                            type="text"
+                                            value={newName}
+                                            onChange={(e) => setNewName(e.target.value)}
+                                            className="w-full px-3 py-2 text-sm bg-gray-50 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            autoFocus
+                                            onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={handleRename}
+                                                disabled={renameLoading}
+                                                className="flex-1 bg-indigo-600 text-white py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1"
+                                            >
+                                                {renameLoading ? <Loader size={12} className="animate-spin" /> : <Check size={12} />}
+                                                Save
+                                            </button>
+                                            <button
+                                                onClick={() => { setIsRenaming(false); setNewName(selectedFile.filename); }}
+                                                className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm text-gray-700 break-all font-medium">{selectedFile.filename}</p>
+                                        <button
+                                            onClick={() => setIsRenaming(true)}
+                                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                            title="Rename file"
+                                        >
+                                            <Pencil size={14} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Public URL</label>

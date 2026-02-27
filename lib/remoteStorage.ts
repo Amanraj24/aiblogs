@@ -54,6 +54,40 @@ export const uploadFile = async (file: File): Promise<{ success: boolean; url?: 
     }
 };
 
+/**
+ * Uploads a Blob (e.g. from a generated image URL) to remote storage
+ */
+export const uploadBlob = async (blob: Blob, filename: string): Promise<{ success: boolean; url?: string; error?: string }> => {
+    try {
+        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        return uploadFile(file);
+    } catch (error) {
+        console.error('Blob to File conversion error:', error);
+        return { success: false, error: 'Failed to process image data' };
+    }
+};
+
+export const renameFile = async (oldFilename: string, newFilename: string): Promise<{ success: boolean; error?: string }> => {
+    if (!API_URL || !API_KEY) {
+        return { success: false, error: 'Remote storage configuration missing' };
+    }
+
+    try {
+        const response = await fetch(`${API_URL}?action=rename&oldFilename=${encodeURIComponent(oldFilename)}&newFilename=${encodeURIComponent(newFilename)}`, {
+            method: 'POST',
+            headers: {
+                'X-API-Key': API_KEY,
+            },
+        });
+
+        const data = await response.json();
+        return { success: data.success === true, error: data.error };
+    } catch (error) {
+        console.error('Rename File Error:', error);
+        return { success: false, error: 'Failed to connect to storage API' };
+    }
+};
+
 export const listFiles = async (): Promise<RemoteFile[]> => {
     if (!API_URL || !API_KEY) {
         console.error('Remote storage configuration missing');

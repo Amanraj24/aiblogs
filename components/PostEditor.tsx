@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { generateFullPost, generateCoverImage } from '@/app/actions/gemini';
+import { generateFullPost, generateCoverImage, generateAndStoreCoverImage } from '@/app/actions/gemini';
 import { BlogPost } from '../types';
 import Button from './Button';
 import { Check, Copy, RefreshCw, ArrowLeft, Tag, Clock, Calendar, Sparkles, Wand2, Image as ImageIcon, CalendarClock, Globe, HelpCircle, TrendingUp, BookOpen } from 'lucide-react';
 import TiptapEditor from './TiptapEditor';
 import MediaPickerModal from './MediaPickerModal';
+import { getCombinedSchemaHtml } from '../lib/schemaGenerator';
 
 interface PostEditorProps {
   topic: string;
@@ -30,6 +31,16 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
   // Editing state for new fields
   const [geoTargeting, setGeoTargeting] = useState(initialPost?.geoTargeting || 'Global');
   const [seoScore, setSeoScore] = useState(initialPost?.seoScore || 85);
+  const [slug, setSlug] = useState(initialPost?.slug || '');
+
+  const slugify = (text: string) => {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
 
   // Load from local draft if available
   useEffect(() => {
@@ -38,6 +49,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
       setCoverImage(initialPost.coverImage || null);
       setGeoTargeting(initialPost.geoTargeting || 'Global');
       setSeoScore(initialPost.seoScore || 85);
+      setSlug(initialPost.slug || slugify(initialPost.title));
       setLoading(false);
       return;
     }
@@ -54,6 +66,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
           setCoverImage(draft.coverImage);
           setGeoTargeting(draft.geoTargeting);
           setSeoScore(draft.seoScore);
+          setSlug(draft.slug || slugify(draft.postData.title || ''));
           setLoading(false);
           return;
         }
@@ -90,6 +103,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
         setPostData({ ...data, content: cleanContent });
         setGeoTargeting(data.geoTargeting || 'Global');
         setSeoScore(data.seoScore || 85);
+        setSlug(slugify(data.title || ''));
       } catch (err) {
         setError("Failed to generate content. Please try again.");
       } finally {
@@ -108,6 +122,7 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
         coverImage,
         geoTargeting,
         seoScore,
+        slug,
         timestamp: Date.now()
       };
       localStorage.setItem('currentDraft', JSON.stringify(draft));
@@ -118,10 +133,18 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
     if (!topic && !postData?.title) return;
     setIsGeneratingImage(true);
     try {
-      const base64Image = await generateCoverImage(topic || postData?.title || "");
-      setCoverImage(base64Image);
-    } catch (err) {
-      alert("Failed to generate image. Please try again.");
+      // Use the new server action that generates AND stores the image in one secure step
+      const filename = slug ? (slug.endsWith('.jpg') ? slug : `${slug}.jpg`) : undefined;
+      const result = await generateAndStoreCoverImage(topic || postData?.title || "", false, filename);
+
+      if (result.success && result.url) {
+        setCoverImage(result.url);
+      } else {
+        throw new Error(result.error || "Failed to generate or save image");
+      }
+    } catch (err: any) {
+      console.error("Image generation/upload error:", err);
+      alert(err.message || "Failed to generate AI image. Please try again.");
     } finally {
       setIsGeneratingImage(false);
     }
@@ -146,10 +169,31 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
       return;
     }
 
+    // Inject Schema JSON-LD into content for external systems/SEO
+    // Note: getCombinedSchemaHtml is not defined in the provided context,
+    // assuming it's an external utility function.
+    const schemaHtml = getCombinedSchemaHtml({
+      ...postData,
+      title: postData.title,
+      id: initialPost?.id,
+      slug: slug || slugify(postData.title || ''),
+      category: postData.category,
+      dateCreated: initialPost?.dateCreated || new Date().toLocaleString(),
+      coverImage: coverImage,
+      geoTargeting: geoTargeting,
+      aeoQuestions: postData.aeoQuestions || [],
+      seoScore: seoScore,
+      commercialIntent: postData.commercialIntent,
+      isHowTo: postData.isHowTo,
+      steps: postData.steps,
+    } as BlogPost); // Cast to BlogPost for type safety if getCombinedSchemaHtml expects it
+
+    const finalContent = `${postData.content || ''}\n\n${schemaHtml}`;
+
     const newPost: BlogPost = {
       id: initialPost?.id || Date.now().toString(),
       title: postData.title || "Untitled",
-      content: postData.content || "",
+      content: finalContent,
       excerpt: postData.excerpt || "",
       keywords: postData.keywords || [],
       category: postData.category || "General",
@@ -161,6 +205,10 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
       geoTargeting: geoTargeting,
       aeoQuestions: postData.aeoQuestions || [],
       seoScore: seoScore,
+      slug: slug || slugify(postData.title || 'untitled'),
+      commercialIntent: postData.commercialIntent,
+      isHowTo: postData.isHowTo,
+      steps: postData.steps,
     };
 
     // Clear draft on successful publish
@@ -187,7 +235,14 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
   };
 
   const handleTitleChange = (title: string) => {
-    setPostData(prev => prev ? { ...prev, title } : null);
+    setPostData(prev => {
+      if (!prev) return null;
+      // Also update slug if it was empty or matched the old title
+      if (!slug || slug === slugify(prev.title || '')) {
+        setSlug(slugify(title));
+      }
+      return { ...prev, title };
+    });
   };
 
   if (loading) {
@@ -270,6 +325,19 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
                 placeholder="Post Title"
               />
 
+              {/* Editable Slug */}
+              <div className="flex items-center gap-2 mb-6 px-1">
+                <span className="text-gray-400 text-sm font-medium">URL:</span>
+                <span className="text-gray-400 text-sm">/blog/</span>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => setSlug(slugify(e.target.value))}
+                  className="flex-1 text-sm bg-gray-50 border-b border-dashed border-gray-300 focus:border-indigo-500 focus:outline-none py-0.5 text-indigo-600 font-medium"
+                  placeholder="post-url-slug"
+                />
+              </div>
+
               {/* Editable Content */}
               <div className="mb-8">
                 <TiptapEditor
@@ -289,13 +357,15 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
 
                 {/* FAQ Section Preview */}
                 {postData?.aeoQuestions && postData.aeoQuestions.length > 0 && (
-                  <div className="mt-12 pt-8 border-t border-gray-100">
+                  <div className="mt-12 pt-8 border-t border-gray-100" itemScope itemType="https://schema.org/FAQPage">
                     <h3 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h3>
                     <div className="space-y-6">
                       {postData.aeoQuestions.map((qa, idx) => (
-                        <div key={idx} className="bg-gray-50 rounded-lg p-6">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-2">{qa.question}</h4>
-                          <p className="text-gray-700 leading-relaxed">{qa.answer}</p>
+                        <div key={idx} className="bg-gray-50 rounded-lg p-6" itemProp="mainEntity" itemScope itemType="https://schema.org/Question">
+                          <h4 className="text-lg font-semibold text-gray-900 mb-2" itemProp="name">{qa.question}</h4>
+                          <div itemProp="acceptedAnswer" itemScope itemType="https://schema.org/Answer">
+                            <p className="text-gray-700 leading-relaxed" itemProp="text">{qa.answer}</p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -351,25 +421,66 @@ const PostEditor: React.FC<PostEditorProps> = ({ topic, tone, initialPost, onPub
             </div>
           </div>
 
-          {/* AEO Questions */}
-          {postData?.aeoQuestions && postData.aeoQuestions.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center"><HelpCircle className="w-5 h-5 text-indigo-600 mr-2" />People Also Ask</h3>
-              <div className="space-y-3">
-                {postData.aeoQuestions.map((qa, idx) => (
-                  <div key={idx} className="bg-indigo-50 p-3 rounded-lg">
-                    <p className="font-medium text-indigo-900 text-sm mb-1">Q: {qa.question}</p>
-                    <p className="text-indigo-700 text-xs">A: {qa.answer}</p>
-                  </div>
-                ))}
-              </div>
+          {/* AEO Questions Editor */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-between">
+              <span className="flex items-center"><HelpCircle className="w-5 h-5 text-indigo-600 mr-2" />FAQs (AEO)</span>
+              <button
+                onClick={() => {
+                  const newQuestions = [...(postData?.aeoQuestions || []), { question: '', answer: '' }];
+                  setPostData(prev => prev ? { ...prev, aeoQuestions: newQuestions } : null);
+                }}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+              >
+                + Add
+              </button>
+            </h3>
+            <div className="space-y-4">
+              {postData?.aeoQuestions?.map((qa, idx) => (
+                <div key={idx} className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 relative group">
+                  <button
+                    onClick={() => {
+                      const newQuestions = postData.aeoQuestions?.filter((_, i) => i !== idx);
+                      setPostData(prev => prev ? { ...prev, aeoQuestions: newQuestions } : null);
+                    }}
+                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                  <input
+                    type="text"
+                    value={qa.question}
+                    onChange={(e) => {
+                      const newQuestions = [...(postData.aeoQuestions || [])];
+                      newQuestions[idx].question = e.target.value;
+                      setPostData(prev => prev ? { ...prev, aeoQuestions: newQuestions } : null);
+                    }}
+                    placeholder="Question"
+                    className="w-full text-xs font-semibold bg-transparent border-b border-indigo-200 focus:border-indigo-500 focus:outline-none mb-2 py-1 placeholder-indigo-300"
+                  />
+                  <textarea
+                    value={qa.answer}
+                    onChange={(e) => {
+                      const newQuestions = [...(postData.aeoQuestions || [])];
+                      newQuestions[idx].answer = e.target.value;
+                      setPostData(prev => prev ? { ...prev, aeoQuestions: newQuestions } : null);
+                    }}
+                    placeholder="Answer"
+                    rows={2}
+                    className="w-full text-xs bg-transparent focus:outline-none text-indigo-700 placeholder-indigo-300 resize-none"
+                  />
+                </div>
+              ))}
+              {(!postData?.aeoQuestions || postData.aeoQuestions.length === 0) && (
+                <p className="text-xs text-gray-400 text-center italic py-2">No FAQs added. Add some for better Answer Engine Optimization.</p>
+              )}
             </div>
-          )}
+          </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center"><Sparkles className="w-5 h-5 text-indigo-600 mr-2" />Meta Data</h3>
             <div className="mb-6">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Target Keywords</h4>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Tags</h4>
               <div className="flex flex-wrap gap-2 mb-3">
                 {postData?.keywords?.map((keyword, idx) => (
                   <span key={idx} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100 group">

@@ -1,5 +1,6 @@
 export interface BlogPost {
   id: string;
+  slug: string;
   title: string;
   excerpt: string;
   content: string; // Markdown content
@@ -15,6 +16,11 @@ export interface BlogPost {
   geoTargeting?: string; // e.g., "US", "Global", "NYC"
   aeoQuestions?: { question: string, answer: string }[]; // Q&A for Answer Engine Optimization
   seoScore?: number; // 0-100
+
+  // Schema Enhancement Fields
+  commercialIntent?: boolean; // detected pricing/buying intent
+  isHowTo?: boolean; // detected tutorial/guide intent
+  steps?: string[]; // detected steps for HowTo
 }
 
 export interface GeneratedTopic {

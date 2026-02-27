@@ -2,6 +2,7 @@ import React from 'react';
 import { BlogPost } from '../types';
 import Button from './Button';
 import { ArrowLeft, Calendar, Clock, Tag, User, Share2, Edit, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
+import { aggregateSchemas } from '../lib/schemaGenerator';
 
 interface PostReaderProps {
   post: BlogPost;
@@ -11,19 +12,7 @@ interface PostReaderProps {
 
 const PostReader: React.FC<PostReaderProps> = ({ post, onBack, onEdit }) => {
 
-  // Generate FAQ Schema if Q&A exists
-  const faqSchema = post.aeoQuestions && post.aeoQuestions.length > 0 ? {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": post.aeoQuestions.map(q => ({
-      "@type": "Question",
-      "name": q.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": q.answer
-      }
-    }))
-  } : null;
+  const schemas = aggregateSchemas(post);
 
   // FAQ Accordion State - specific to this component instance
   const [openFaqIndex, setOpenFaqIndex] = React.useState<number | null>(null);
@@ -34,12 +23,13 @@ const PostReader: React.FC<PostReaderProps> = ({ post, onBack, onEdit }) => {
 
   return (
     <div className="max-w-4xl mx-auto pb-12 animate-fade-in">
-      {faqSchema && (
+      {schemas.map((schema, idx) => (
         <script
+          key={idx}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
-      )}
+      ))}
       <div className="mb-6 flex justify-between items-center">
         <Button variant="ghost" onClick={onBack} icon={<ArrowLeft size={18} />}>
           Back
@@ -124,7 +114,7 @@ const PostReader: React.FC<PostReaderProps> = ({ post, onBack, onEdit }) => {
 
           {/* FAQ Section (Accordion Style) */}
           {post.aeoQuestions && post.aeoQuestions.length > 0 && (
-            <div className="mt-12 pt-8 border-t border-gray-100">
+            <div className="mt-12 pt-8 border-t border-gray-100" itemScope itemType="https://schema.org/FAQPage">
               <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                 <span className="bg-indigo-100 text-indigo-600 p-2 rounded-lg mr-3">
                   <HelpCircle size={24} />
@@ -133,12 +123,12 @@ const PostReader: React.FC<PostReaderProps> = ({ post, onBack, onEdit }) => {
               </h3>
               <div className="space-y-4">
                 {post.aeoQuestions.map((qa, idx) => (
-                  <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:border-indigo-300">
+                  <div key={idx} itemProp="mainEntity" itemScope itemType="https://schema.org/Question" className="border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:border-indigo-300">
                     <button
                       onClick={() => toggleFaq(idx)}
                       className="w-full flex justify-between items-center p-5 bg-gray-50 hover:bg-white transition-colors text-left focus:outline-none"
                     >
-                      <h4 className="text-lg font-semibold text-gray-900 pr-8">{qa.question}</h4>
+                      <h4 className="text-lg font-semibold text-gray-900 pr-8" itemProp="name">{qa.question}</h4>
                       {openFaqIndex === idx ? (
                         <ChevronUp className="text-indigo-600 flex-shrink-0" size={20} />
                       ) : (
@@ -146,8 +136,8 @@ const PostReader: React.FC<PostReaderProps> = ({ post, onBack, onEdit }) => {
                       )}
                     </button>
                     {openFaqIndex === idx && (
-                      <div className="p-5 bg-white border-t border-gray-100 transition-all duration-300 ease-in-out">
-                        <p className="text-gray-700 leading-relaxed animate-[fadeIn_0.3s_ease-out]">
+                      <div className="p-5 bg-white border-t border-gray-100 transition-all duration-300 ease-in-out" itemProp="acceptedAnswer" itemScope itemType="https://schema.org/Answer">
+                        <p className="text-gray-700 leading-relaxed animate-[fadeIn_0.3s_ease-out]" itemProp="text">
                           {qa.answer || (qa as any).text || (qa as any).acceptedAnswer?.text || "No answer generated for this question."}
                         </p>
                       </div>

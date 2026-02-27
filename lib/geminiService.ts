@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, Schema, GenerateContentResponse } from "@google/genai";
 import { BlogPost, GeneratedTopic, TrainingModule } from '../types';
+import { getCombinedSchemaHtml } from "./schemaGenerator";
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
@@ -125,9 +126,12 @@ export const generateFullPost = async (topic: string, tone: string, trainingCont
         maxItems: 6 as any,
         description: "Strictly generate between 4 to 6 'People Also Ask' style Q&A pairs. EVERY question MUST have a detailed 'answer'. Do NOT include these in the main content body."
       },
-      seoScore: { type: Type.NUMBER, description: "SEO score (0-100)." }
+      seoScore: { type: Type.NUMBER, description: "SEO score (0-100)." },
+      commercialIntent: { type: Type.BOOLEAN, description: "True if article mentions buying, pricing, or services." },
+      isHowTo: { type: Type.BOOLEAN, description: "True if article is a tutorial/guide with ordered steps." },
+      steps: { type: Type.ARRAY, items: { type: Type.STRING }, description: "If isHowTo is true, list the specific steps." }
     },
-    required: ["title", "content", "excerpt", "keywords", "category", "readTime", "geoTargeting", "aeoQuestions", "seoScore"]
+    required: ["title", "content", "excerpt", "keywords", "category", "readTime", "geoTargeting", "aeoQuestions", "seoScore", "commercialIntent", "isHowTo"]
   };
 
   const contextPrompt = trainingContext ? `\n\n[USER TRAINING/STYLE GUIDE]:\n${trainingContext}\n\nSTRICTLY ADHERE to the above style guide, facts, and rules in the content generation.` : "";
@@ -168,11 +172,15 @@ export const generateFullPost = async (topic: string, tone: string, trainingCont
   }
 };
 
-// Helper to generate a cover image
-export const generateCoverImage = async (topic: string): Promise<string> => {
-  // Fallback to high-quality Unsplash image for stability
-  const randomSeed = Math.floor(Math.random() * 100000);
-  return `https://picsum.photos/seed/${randomSeed}/800/400`;
+// Helper to generate a cover image or any image from a prompt
+export const generateCoverImage = async (prompt: string, isRawPrompt: boolean = false): Promise<string> => {
+  // If it's a raw prompt, use it directly. If it's a topic, wrap it in a professional context.
+  const finalPrompt = isRawPrompt
+    ? encodeURIComponent(prompt.substring(0, 200))
+    : encodeURIComponent(`High-quality cinematic blog header image for: ${prompt.substring(0, 100)}, vivid colors, detailed, professional photography`);
+
+  const seed = Math.floor(Math.random() * 1000000);
+  return `https://image.pollinations.ai/prompt/${finalPrompt}?width=1000&height=500&nologo=true&seed=${seed}`;
 };
 
 // New helper to orchestrate the entire auto-posting flow
@@ -198,8 +206,8 @@ export const generateAndPublishAutoPost = async (niche: string): Promise<BlogPos
     coverImage = `https://picsum.photos/800/400?random=${Date.now()}`;
   }
 
-  // 4. Return complete post
-  return {
+  // 4. Create base post object for schema generation
+  const basePost: BlogPost = {
     id: Date.now().toString(),
     title: content.title || randomTopic.topic,
     content: content.content || "",
@@ -212,8 +220,18 @@ export const generateAndPublishAutoPost = async (niche: string): Promise<BlogPos
     geoTargeting: content.geoTargeting || "Global",
     aeoQuestions: content.aeoQuestions || [],
     seoScore: content.seoScore || 85,
+    commercialIntent: content.commercialIntent,
+    isHowTo: content.isHowTo,
+    steps: content.steps,
+    slug: (content.title || randomTopic.topic).toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''),
     coverImage
   };
+
+  // 5. Inject Schema JSON-LD into content
+  const schemaHtml = getCombinedSchemaHtml(basePost);
+  basePost.content = `${basePost.content}\n\n${schemaHtml}`;
+
+  return basePost;
 };
 
 // New helper for Managerial Training Hub
